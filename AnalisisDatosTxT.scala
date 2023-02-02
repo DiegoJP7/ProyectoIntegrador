@@ -1,11 +1,18 @@
 package Avance1
 import java.io.File
 import com.github.tototoshi.csv._
+import com.cibo.evilplot.plot.{BarChart, Histogram}
+import com.cibo.evilplot.plot.aesthetics.DefaultTheme.{DefaultElements, DefaultTheme}
+import play.api.libs.json._
 object AnalisisDatosTxT  extends App{
   val reader = CSVReader.open(new File("/Users/diegojp/Downloads/movie_dataset 2.csv"))
   val data = reader.allWithHeaders()
 
   reader.close()
+
+  implicit val theme = DefaultTheme.copy(
+    elements = DefaultElements.copy(categoricalXAxisLabelOrientation = 45)
+  )
   println("---------------------------------------------------------------------")
   println("Estadisticas\n")
   //Tablas para analizar
@@ -14,13 +21,25 @@ object AnalisisDatosTxT  extends App{
   //status
   //director
   println("                                                 Genero")
-  val genreCount = {
-    val genero = data.flatMap(x => x.get("genres"))
-    genero.groupBy { case genero => genero }
-      .map { case genero => genero }
-      .map { case genero => (genero._1, genero._2.size) }
-      .toList.sortBy(x => x._2)
-  }
+  val genero = data.flatMap(x => x.get("genres"))
+    .filter(_.nonEmpty)
+    .flatMap(x=>x.split(" ").toList)
+    .groupBy{
+      case x=>x
+    }.map{
+    case x=>(x._1,x._2.size)
+  }.toList.sortBy(_._2)
+
+  BarChart(genero.map(_._2))
+    .title("Genres")
+    .xAxis(genero.map(_._1))
+    .yAxis()
+    .frame()
+    .yLabel("Valor")
+    .bottomLegend()
+    .render()
+    .write(new File("/Users/diegojp/Desktop/diagms/DatosNoNumericos/Genres.png")
+    )
   //Saber si esta vacio
 
   val genresCount = {
@@ -58,13 +77,13 @@ object AnalisisDatosTxT  extends App{
 
   println("---------------------------------------------------------------------")
   println("                                                 Status")
-  val ststusCount = {
-    val status = data.flatMap(x => x.get("status"))
-    status.groupBy { case status => status }
-      .map { case status => status }
-      .map { case status => (status._1, status._2.size) }
-      .toList.sortBy(x => x._2)
-  }
+
+  val statusC = data.flatMap(x => x.get("status"))
+    .groupBy { case x => x }
+    .map { case x => x }
+    .map { case x => (x._1, x._2.size) }
+    .toList.sortBy(_._2)
+
   //Para saber si esta vacio
   val statusEmp = {
     val status = data.flatMap(x => x.get("status"))
@@ -73,7 +92,17 @@ object AnalisisDatosTxT  extends App{
       .map { case status => (status._1, status._2.size) }
       .toList.sortBy(x => x._2)
   }
-  println("Status Existentes: " + ststusCount)
+  println("Status Existentes: " + statusC)
+  BarChart(statusC.map(_._2))
+    .title("Genres")
+    .xAxis(statusC.map(_._1))
+    .yAxis()
+    .frame()
+    .yLabel("Valor")
+    .bottomLegend()
+    .render()
+    .write(new File("/Users/diegojp/Desktop/diagms/DatosNoNumericos/Status.png")
+    )
 
   println("---------------------------------------------------------------------")
   println("                                                 Director")
@@ -93,7 +122,26 @@ object AnalisisDatosTxT  extends App{
       .toList.sortBy(x => x._2)
       .map(x => x._2)
   }
+  val dicMayor=directorCount.filter(x => x._1 != "").maxBy(x => x._2)
+  val dicMenor=directorCount.filter(x => x._1 != "").minBy(x => x._2)
   println("Peliculas sin director: " + directorCountEmp.head)
-  println("Director con mas peliculas: " + directorCount.filter(x => x._1 != "").maxBy(x => x._2))
-  println("Director con menos peliculas: " + directorCount.filter(x => x._1 != "").minBy(x => x._2))
+  println("Director con mas peliculas: " + dicMayor)
+  println("Director con menos peliculas: " +dicMenor )
+
+  val dicDiagram=List(
+    (dicMayor._1,dicMayor._2),
+    (dicMenor._1,dicMenor._2),
+    ("Peliculas sin director: ", directorCountEmp.head)
+
+  )
+  BarChart(dicDiagram.map(_._2))
+    .title("Director")
+    .xAxis(dicDiagram.map(_._1))
+    .yAxis()
+    .frame()
+    .yLabel("Valor")
+    .bottomLegend()
+    .render()
+    .write(new File("/Users/diegojp/Desktop/diagms/DatosNoNumericos/Directors.png")
+    )
 }
