@@ -7,6 +7,7 @@ import play.api.libs.json._
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths, StandardOpenOption}
 import play.api.libs.json.{JsArray, JsValue, Json}
+import scalikejdbc._
 
 import scala.util.{Failure, Success, Try}
 
@@ -16,7 +17,9 @@ object InsertInto extends App{
     reader.allWithHeaders()
   }
   reader.close()
-
+  Class.forName("com.mysql.cj.jdbc.Driver")
+  ConnectionPool.singleton("jdbc:mysql://localhost:3306/MoviesTS14", "root", "messer10")
+  implicit val session: DBSession = AutoSession
 
   case class Movie(id: String,
                    originalLanguage: String,
@@ -132,6 +135,32 @@ object InsertInto extends App{
     .flatMap(t4=>t4._3.map(name=>(t4._1,t4._2,name,t4._4)))
     .map(_.productIterator.toList)
     .distinct
+  //Tablas
+  val castData = data
+    .map((row) => row("cast"))
+    .filter(_.nonEmpty)
+    .take(10)
+    .map(StringContext.processEscapes)
+    .map(actorsNames)
+    .map(json => Try(Json.parse(json.get)))
+    .filter(_.isSuccess)
+    .map(_.get)
+    .flatMap(json => json("entity_list").as[JsArray].value)
+    .map(_("form"))
+    .map(data => data.as[String])
+    .distinct
+    .toSet
+
+  val cast = castData.map(x =>
+    sql"""
+         INSERT INTO `cast`(nombreCast)
+         VALUES
+         (${x})
+         """.stripMargin
+      .update
+      .apply())
+
+
 
   val f = new File("/Users/diegojp/Desktop/NuevoMovie.csv")
   val writer = CSVWriter.open(f)
